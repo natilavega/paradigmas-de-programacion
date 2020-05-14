@@ -64,21 +64,21 @@ esGanador unParticipante = (tieneTactica "Accionista" unParticipante) || (tieneT
 ganarPropiedad :: Propiedad -> Accion
 ganarPropiedad unaPropiedad unParticipante = (cambiarCantidadDeDinero (subtract (snd unaPropiedad)) . cambiarPropiedad (++ [unaPropiedad]) ) unParticipante
 
-subastar :: Participante -> Propiedad -> Participante
-subastar unParticipante unaPropiedad
+subastar :: Propiedad -> Accion
+subastar unaPropiedad unParticipante
   | esGanador unParticipante = ganarPropiedad unaPropiedad unParticipante
   | otherwise                = unParticipante
 
 --5
-precioPropiedad :: Propiedad -> Int
-precioPropiedad unaPropiedad
+gananciaPorPropiedad :: Propiedad -> Int
+gananciaPorPropiedad unaPropiedad
   | (snd unaPropiedad) < 150  = 10
-  | (snd unaPropiedad) >= 150 = 20
+  | otherwise                 = 20
 
 cantidadACobrar :: [Propiedad] -> Int
-cantidadACobrar listaPropiedades = (sum . map precioPropiedad) listaPropiedades
+cantidadACobrar listaPropiedades = (sum . map gananciaPorPropiedad) listaPropiedades
 
-cobrarAlquileres :: Participante -> Participante
+cobrarAlquileres :: Accion
 cobrarAlquileres unParticipante = cambiarCantidadDeDinero (+ cantidadACobrar (propiedadesCompradas unParticipante)) unParticipante
   
 --6
@@ -87,3 +87,26 @@ pagarAAccionistas unParticipante
   | tieneTactica "Accionista" unParticipante = cambiarCantidadDeDinero (+200) unParticipante
   | otherwise                                = cambiarCantidadDeDinero (subtract 100) unParticipante
 
+--7
+conseguirDinero :: Propiedad -> Accion
+conseguirDinero unaPropiedad unParticipante
+  | cantidadDeDinero unParticipante == snd unaPropiedad = ganarPropiedad unaPropiedad unParticipante
+  | otherwise                                           = ((conseguirDinero unaPropiedad) . cambiarCantidadDeDinero (+10)) unParticipante
+
+hacerBerrinchePor :: Propiedad -> Accion
+hacerBerrinchePor unaPropiedad unParticipante = ((conseguirDinero unaPropiedad) . gritar) unParticipante
+
+--8
+ultimaRonda :: Accion
+ultimaRonda unParticipante = (foldl1 (.) (reverse (accionesDeJuego unParticipante))) unParticipante
+
+dineroAlFinalDelJuego :: Participante -> Int
+dineroAlFinalDelJuego unParticipante = (cantidadDeDinero . ultimaRonda) unParticipante
+
+anunciarGanador :: Participante -> String
+anunciarGanador unParticipante = "The winner is... " ++ (nombre unParticipante)
+
+finalDelJuego :: Participante -> Participante -> String
+finalDelJuego participanteUno participanteDos
+  | dineroAlFinalDelJuego participanteUno >= dineroAlFinalDelJuego participanteDos = anunciarGanador participanteUno
+  | otherwise                                                                      = anunciarGanador participanteDos
