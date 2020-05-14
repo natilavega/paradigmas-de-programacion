@@ -26,19 +26,19 @@ manuel = Participante "Manuel" 500 "Oferente singular" [] [pasarPorElBanco,enoja
 
 --Cambiar datos
 cambiarNombre :: (String -> String) -> Accion
-cambiarNombre unaFuncion unParticipante = unParticipante { nombre = unaFuncion (nombre unParticipante) }
+cambiarNombre unaFuncion unParticipante = unParticipante { nombre = (unaFuncion . nombre) unParticipante }
 
 cambiarCantidadDeDinero :: (Int -> Int) -> Accion
-cambiarCantidadDeDinero unaFuncion unParticipante = unParticipante { cantidadDeDinero = unaFuncion (cantidadDeDinero unParticipante) }
+cambiarCantidadDeDinero unaFuncion unParticipante = unParticipante { cantidadDeDinero = (unaFuncion . cantidadDeDinero) unParticipante }
 
 cambiarTacticaDeJuego :: (String -> String) -> Accion
-cambiarTacticaDeJuego unaFuncion unParticipante = unParticipante { tacticaDeJuego = unaFuncion (tacticaDeJuego unParticipante) }
+cambiarTacticaDeJuego unaFuncion unParticipante = unParticipante { tacticaDeJuego = (unaFuncion . tacticaDeJuego) unParticipante }
 
 cambiarPropiedad :: ([Propiedad] -> [Propiedad]) -> Accion
-cambiarPropiedad unaFuncion unParticipante = unParticipante { propiedadesCompradas = unaFuncion (propiedadesCompradas unParticipante) } 
+cambiarPropiedad unaFuncion unParticipante = unParticipante { propiedadesCompradas = (unaFuncion . propiedadesCompradas) unParticipante } 
 
 cambiarAcciones :: ([Accion] -> [Accion]) -> Accion
-cambiarAcciones unaFuncion unParticipante = unParticipante { accionesDeJuego = unaFuncion (accionesDeJuego unParticipante) }
+cambiarAcciones unaFuncion unParticipante = unParticipante { accionesDeJuego = (unaFuncion . accionesDeJuego) unParticipante }
 
 
 --Acciones
@@ -54,44 +54,36 @@ enojarse unParticipante = (cambiarCantidadDeDinero (+50) . cambiarAcciones (++ [
 gritar :: Accion
 gritar unParticipante = cambiarNombre ("AHHH " ++) unParticipante 
 
-
 --4
-esAccionista :: String -> Bool
-esAccionista "Accionista" = True
-esAccionista _            = False
+tieneTactica :: String -> Participante -> Bool
+tieneTactica unaTactica unParticipante = ((== unaTactica) . tacticaDeJuego) unParticipante
 
-esOferenteSingular :: String -> Bool
-esOferenteSingular "Oferente singular" = True
-esOferenteSingular _                   = False
+esGanador :: Participante -> Bool
+esGanador unParticipante = (tieneTactica "Accionista" unParticipante) || (tieneTactica "Oferente singular" unParticipante)
 
 ganarPropiedad :: Propiedad -> Accion
 ganarPropiedad unaPropiedad unParticipante = (cambiarCantidadDeDinero (subtract (snd unaPropiedad)) . cambiarPropiedad (++ [unaPropiedad]) ) unParticipante
 
-subastar :: Propiedad -> Participante -> Participante
-subastar unaPropiedad unParticipante
-  | (esAccionista . tacticaDeJuego) unParticipante       = ganarPropiedad unaPropiedad unParticipante
-  | (esOferenteSingular . tacticaDeJuego) unParticipante = ganarPropiedad unaPropiedad unParticipante
-  | otherwise                                            = unParticipante
+subastar :: Participante -> Propiedad -> Participante
+subastar unParticipante unaPropiedad
+  | esGanador unParticipante = ganarPropiedad unaPropiedad unParticipante
+  | otherwise                = unParticipante
 
 --5
-esPropiedadBarata :: Propiedad -> Bool
-esPropiedadBarata (_,precio) = precio < 150
+precioPropiedad :: Propiedad -> Int
+precioPropiedad unaPropiedad
+  | (snd unaPropiedad) < 150  = 10
+  | (snd unaPropiedad) >= 150 = 20
 
-esPropiedadCara :: Propiedad -> Bool
-esPropiedadCara (_,precio) = precio >= 150
-
-contadorDePropiedades :: (Propiedad -> Bool) -> [Propiedad] -> Int
-contadorDePropiedades unaFuncion listaDePropiedades = (length . filter (unaFuncion)) listaDePropiedades
-
-gananciaDeAlquileres :: [Propiedad] -> Int
-gananciaDeAlquileres listaDePropiedades = (contadorDePropiedades esPropiedadBarata listaDePropiedades) *10 + (contadorDePropiedades esPropiedadCara listaDePropiedades) *20
+cantidadACobrar :: [Propiedad] -> Int
+cantidadACobrar listaPropiedades = (sum . map precioPropiedad) listaPropiedades
 
 cobrarAlquileres :: Participante -> Participante
-cobrarAlquileres unParticipante = cambiarCantidadDeDinero (+ gananciaDeAlquileres (propiedadesCompradas unParticipante)) unParticipante
+cobrarAlquileres unParticipante = cambiarCantidadDeDinero (+ cantidadACobrar (propiedadesCompradas unParticipante)) unParticipante
   
 --6
 pagarAAccionistas :: Accion
 pagarAAccionistas unParticipante
-  | (esAccionista . tacticaDeJuego) unParticipante = cambiarCantidadDeDinero (+200) unParticipante
-  | otherwise                                      = cambiarCantidadDeDinero (subtract 100) unParticipante
+  | tieneTactica "Accionista" unParticipante = cambiarCantidadDeDinero (+200) unParticipante
+  | otherwise                                = cambiarCantidadDeDinero (subtract 100) unParticipante
 
